@@ -27,14 +27,13 @@ The tutor's previous line is intentionally *not* given to the analysis model: wi
 ## Run
 
 ```sh
-cd /Users/edwin/workspaces/english-speaking-coach
 uv sync
-APP_HOST=100.89.133.22 uv run python app/server.py   # Tailscale listener
-APP_HOST=127.0.0.1     uv run python app/server.py   # loopback listener
+APP_HOST=<tailscale-ip> uv run python app/server.py   # Tailscale listener
+APP_HOST=127.0.0.1      uv run python app/server.py   # loopback listener
 uv run pytest
 ```
 
-Open `http://macstudio:18765` from a device on the tailnet. Microphone access needs a secure context (HTTPS, e.g. `tailscale serve`, or localhost). On iPhone, "홈 화면에 추가" gives a full-screen app.
+Open `http://<mac-hostname>:18765` from a device on the tailnet. Microphone access needs a secure context (HTTPS, e.g. `tailscale serve`, or localhost). On iPhone, "홈 화면에 추가" gives a full-screen app.
 
 Environment: `LLM_BASE_URL`, `LLM_MODEL`, `ANALYSIS_MODEL`, `TTS_ENGINE` (`auto`|`qwen`|`say`), `TTS_VOICE` (e.g. `qwen:aiden`, `say:Samantha`), `QWEN_TTS_MODEL`, `WHISPER_MODEL`, `APP_HOST`, `PORT`, `COACH_DB`.
 
