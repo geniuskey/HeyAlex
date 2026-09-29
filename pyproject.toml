@@ -1,0 +1,19 @@
+[project]
+name = "hey-alex"
+version = "0.1.0"
+description = "A candid, local-first English speaking coach"
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper>=1.1,<2",
+    "flask>=3.0,<4",
+    "mlx-audio==0.5.7",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["app"]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
