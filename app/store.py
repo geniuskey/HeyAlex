@@ -60,7 +60,7 @@ def init_db() -> None:
             """
         )
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(turns)")}
-        for name, decl in (("session_id", "INTEGER"), ("words", "INTEGER NOT NULL DEFAULT 0"), ("audio_seconds", "REAL"), ("analyzed", "INTEGER NOT NULL DEFAULT 0")):
+        for name, decl in (("session_id", "INTEGER"), ("words", "INTEGER NOT NULL DEFAULT 0"), ("audio_seconds", "REAL"), ("analyzed", "INTEGER NOT NULL DEFAULT 0"), ("is_control", "INTEGER NOT NULL DEFAULT 0")):
             if name not in columns:
                 conn.execute(f"ALTER TABLE turns ADD COLUMN {name} {decl}")
 
@@ -82,11 +82,11 @@ def get_session(session_id: int) -> dict[str, Any] | None:
         row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
         if row is None:
             return None
-        turns = conn.execute("SELECT id, created, user_text, reply, feedback, audio_seconds, analyzed FROM turns WHERE session_id = ? ORDER BY id", (session_id,)).fetchall()
+        turns = conn.execute("SELECT id, created, user_text, reply, feedback, audio_seconds, analyzed, is_control FROM turns WHERE session_id = ? ORDER BY id", (session_id,)).fetchall()
     out = []
     for t in turns:
         analysis = json.loads(t["feedback"]) if t["analyzed"] else None
-        out.append({"id": t["id"], "user_text": t["user_text"], "reply": t["reply"], "analysis": analysis, "audio_seconds": t["audio_seconds"]})
+        out.append({"id": t["id"], "user_text": t["user_text"], "reply": t["reply"], "analysis": analysis, "audio_seconds": t["audio_seconds"], "is_control": bool(t["is_control"])})
     return {**dict(row), "turns": out}
 
 
@@ -95,7 +95,7 @@ def conversation_history(session_id: int, limit_turns: int = 8) -> list[dict[str
     if session is None:
         return []
     messages = [{"role": "assistant", "content": session["opener"]}] if session["opener"] else []
-    turns = session["turns"]
+    turns = [t for t in session["turns"] if not t["is_control"]]
     if len(turns) > limit_turns:
         messages = []
         turns = turns[-limit_turns:]
@@ -104,11 +104,11 @@ def conversation_history(session_id: int, limit_turns: int = 8) -> list[dict[str
     return messages
 
 
-def add_turn(session_id: int, user_text: str, reply: str, audio_seconds: float | None) -> int:
+def add_turn(session_id: int, user_text: str, reply: str, audio_seconds: float | None, *, is_control: bool = False) -> int:
     with connect() as conn:
         cur = conn.execute(
-            "INSERT INTO turns(created, user_text, reply, feedback, session_id, words, audio_seconds, analyzed) VALUES(?,?,?,?,?,?,?,0)",
-            (time.time(), user_text, reply, "{}", session_id, word_count(user_text), audio_seconds),
+            "INSERT INTO turns(created, user_text, reply, feedback, session_id, words, audio_seconds, analyzed, is_control) VALUES(?,?,?,?,?,?,?,0,?)",
+            (time.time(), user_text, reply, "{}", session_id, 0 if is_control else word_count(user_text), audio_seconds, int(is_control)),
         )
         return int(cur.lastrowid)
 
@@ -144,7 +144,7 @@ def save_analysis(turn_id: int, analysis: dict[str, Any]) -> dict[str, Any]:
 def end_session(session_id: int) -> dict[str, Any]:
     with connect() as conn:
         conn.execute("UPDATE sessions SET ended = COALESCE(ended, ?) WHERE id = ?", (time.time(), session_id))
-        turns = conn.execute("SELECT words, audio_seconds FROM turns WHERE session_id = ?", (session_id,)).fetchall()
+        turns = conn.execute("SELECT words, audio_seconds FROM turns WHERE session_id = ? AND is_control = 0", (session_id,)).fetchall()
         mistakes = [dict(r) for r in conn.execute("SELECT category, severity, original, improved, explain_ko FROM mistakes WHERE session_id = ? ORDER BY id", (session_id,))]
         good = [dict(r) for r in conn.execute("SELECT g.category, g.text FROM good_uses g JOIN turns t ON t.id = g.turn_id WHERE t.session_id = ?", (session_id,))]
     words = sum(t["words"] for t in turns)
@@ -218,14 +218,14 @@ def current_focus(limit: int = 2) -> list[str]:
 
 def progress() -> dict[str, Any]:
     with connect() as conn:
-        days = [r["d"] for r in conn.execute("SELECT DISTINCT date(created, 'unixepoch', 'localtime') d FROM turns ORDER BY d DESC")]
-        totals = conn.execute("SELECT COUNT(*) turns, COALESCE(SUM(words), 0) words FROM turns").fetchone()
+        days = [r["d"] for r in conn.execute("SELECT DISTINCT date(created, 'unixepoch', 'localtime') d FROM turns WHERE is_control = 0 ORDER BY d DESC")]
+        totals = conn.execute("SELECT COUNT(*) turns, COALESCE(SUM(words), 0) words FROM turns WHERE is_control = 0").fetchone()
         sessions = conn.execute(
             """
             SELECT s.id, s.created, s.topic, COUNT(DISTINCT t.id) turns, COALESCE(SUM(t.words), 0) words,
                    (SELECT COUNT(*) FROM mistakes m WHERE m.session_id = s.id AND m.severity = 'error') errors,
                    (SELECT COUNT(*) FROM mistakes m WHERE m.session_id = s.id) mistakes
-            FROM sessions s JOIN turns t ON t.session_id = s.id
+            FROM sessions s JOIN turns t ON t.session_id = s.id AND t.is_control = 0
             GROUP BY s.id ORDER BY s.id DESC LIMIT 14
             """
         ).fetchall()

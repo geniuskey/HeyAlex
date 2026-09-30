@@ -44,6 +44,7 @@ Environment: `LLM_BASE_URL`, `LLM_MODEL`, `ANALYSIS_MODEL`, `TTS_ENGINE` (`auto`
 - `app/coach.py`: prompts, LLM calls, analysis sanitizing, retry/answer checking
 - `app/store.py`: SQLite schema and migration, weak-point scoring, progress stats, Leitner review
 - `app/speech.py`: Qwen3-TTS / `say` synthesis, Whisper transcription
+- `app/voice_settings.py`: Korean/English chat requests for playback speed, tone, and emotion
 - `app/images.py`: scene selection, conversation context, background jobs and cache
 - `app/local_images.py`: local ComfyUI startup and Qwen Image 2.1 generation
 - `app/server.py`: Flask routes. Turns stream over SSE: `image`, `reply`, then `analysis`
@@ -79,5 +80,9 @@ After corrections stream, replies of 1–7 English words can receive a separate 
 Corrections are presented one at a time: the highest-priority correction is visible, while other corrections and the full-sentence rewrite are collapsed under “다른 교정 N개 보기”. Only visible corrections are highlighted in the learner’s message. Expanding the section shows the remaining explanations and practice controls.
 
 The composer opens in voice mode on every session and reload. The main microphone stays centered, and an icon-only keyboard button on the left expands the optional text input above the voice controls. These controls float over the wallpaper; the transcript extends to the bottom with scroll space that adjusts to the controls' height. Sending typed text returns to the voice layout.
+
+Chat requests update the actual voice settings: “느리게 말해줘” selects 0.8× playback, “더 천천히 말해줘” reduces the current speed by 0.1×, and “0.75배로 말해줘” selects an exact speed within 0.6–1.4×. English requests such as “Please speak slowly” also work. Tone and emotion can be combined, for example “밝고 친근하게 말해줘”, “차분하게 말해줘”, or “Use a gentle and empathetic voice”. They are passed to Qwen3-TTS as delivery instructions; these requests select an available Qwen voice automatically. macOS voices support playback speed but do not support these delivery instructions, which the UI explains if AI speech is unavailable. “음성 설정을 초기화해줘” restores the default speed, tone and emotion. Settings are visible in the settings sheet, saved in the current browser, and applied before the confirmation is spoken. Requests consisting only of voice settings are saved in the chat but excluded from corrections and learning statistics.
+
+During conversation the transcript follows its bottom as replies, corrections, guides, and composer or viewport sizes change. Scrolling up deliberately pauses following so earlier messages can be read; sending another message or reopening the chat returns to the bottom.
 
 The header back button and browser back navigation return to the home screen. Returning home stops recording and playback while preserving the conversation, which can be reopened with “대화 이어가기”. The home tab always opens the home screen. Browser history also restores the chat, review and growth views on reload or forward navigation.

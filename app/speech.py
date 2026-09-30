@@ -16,6 +16,8 @@ import wave
 from pathlib import Path
 from typing import Any
 
+import voice_settings
+
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", str(Path.home() / ".cache/huggingface/hub/models--Systran--faster-whisper-small/snapshots/536b0662742c02347bc0e980a01041f333bce120"))
 QWEN_TTS_MODEL = os.environ.get("QWEN_TTS_MODEL", "mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-6bit")
 QWEN_INSTRUCT = "Speak clearly and naturally, like a friendly native speaker chatting with an English learner."
@@ -115,13 +117,14 @@ def load_qwen_tts_model() -> Any:
     return _qwen
 
 
-def qwen_wav(text: str, speaker: str) -> bytes:
+def qwen_wav(text: str, speaker: str, delivery: Any = None) -> bytes:
     import numpy as np
 
     with _qwen_lock:  # MLX generation is not safe to run concurrently on one model
         model = load_qwen_tts_model()
         chunks, sample_rate = [], 24000
-        for result in model.generate_custom_voice(text=text, speaker=speaker, language="English", instruct=QWEN_INSTRUCT):
+        instruct = voice_settings.instruction(delivery) if delivery is not None else QWEN_INSTRUCT
+        for result in model.generate_custom_voice(text=text, speaker=speaker, language="English", instruct=instruct):
             chunks.append(np.asarray(result.audio, dtype=np.float32).reshape(-1))
             sample_rate = int(getattr(result, "sample_rate", sample_rate) or sample_rate)
     if not chunks:
@@ -129,12 +132,12 @@ def qwen_wav(text: str, speaker: str) -> bytes:
     return pcm_wav(np.concatenate(chunks), sample_rate)
 
 
-def synthesize_wav(text: str, voice: str) -> bytes:
+def synthesize_wav(text: str, voice: str, delivery: Any = None) -> bytes:
     global _qwen_failed
     voice = resolve_voice(voice)
     if voice in QWEN_SPEAKERS:
         try:
-            return qwen_wav(text, QWEN_SPEAKERS[voice][0])
+            return qwen_wav(text, QWEN_SPEAKERS[voice][0], delivery)
         except Exception as exc:  # keep the tutor audible even if the MLX model breaks
             print(f"Qwen3-TTS failed, falling back to macOS say: {type(exc).__name__}: {exc}")
             _qwen_failed = True

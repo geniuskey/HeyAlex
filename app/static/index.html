@@ -134,7 +134,7 @@ body.typing .tabbar { display: none; }
 .resume-chat .arrow { color: var(--accent); font-size: 24px; }
 
 /* ---------- chat ---------- */
-.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px calc(var(--composer-space, 138px) + 12px); scroll-padding-bottom: calc(var(--composer-space, 138px) + 12px); display: flex; flex-direction: column; gap: 16px; }
+.messages { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; overscroll-behavior: contain; padding: 10px 14px calc(var(--composer-space, 138px) + 12px); scroll-padding-bottom: calc(var(--composer-space, 138px) + 12px); display: flex; flex-direction: column; gap: 16px; }
 .messages > .msg { flex-shrink: 0; }
 .msg { max-width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .msg.tutor { align-self: flex-start; display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 9px; align-items: start; }
@@ -394,6 +394,9 @@ body.typing .tabbar { display: none; }
     <div class="field"><label for="optSpeak">답변 소리 내어 읽기</label><input class="switch" type="checkbox" id="optSpeak"></div>
     <div class="field"><label for="optVoice">목소리</label><select id="optVoice"></select></div>
     <div class="field"><label for="optRate">말하기 속도 <small id="rateLabel"></small></label><input type="range" id="optRate" min="0.6" max="1.4" step="0.05"></div>
+    <div class="field"><label for="optTone">어조</label><select id="optTone"></select></div>
+    <div class="field"><label for="optEmotion">감정</label><select id="optEmotion"></select></div>
+    <p class="note">채팅에서 “느리게 말해줘”, “밝고 친근하게 말해줘”라고 요청해 보세요. 어조·감정은 AI 음성에서 적용됩니다.</p>
     <div class="field"><label for="optVeil">듣기 훈련 모드<small>답변 글자를 가리고 먼저 귀로 들어요</small></label><input class="switch" type="checkbox" id="optVeil"></div>
     <div class="field"><label for="optAutoSend">녹음 후 바로 보내기<small>끄면 받아쓴 문장을 고친 뒤 보낼 수 있어요</small></label><input class="switch" type="checkbox" id="optAutoSend"></div>
     <p class="note">모든 대화·음성 인식·음성 합성은 이 Mac의 로컬 AI로 처리됩니다. <span id="modelInfo"></span></p>
@@ -496,9 +499,12 @@ function highlight(text, phrases, onClick) {
 }
 
 // ------------------------------------------------------------ settings
-const settings = Object.assign({ level: 'intermediate', speak: true, voice: '', speed: 1, veil: false, autoSend: true }, load('sf.settings', {}));
-if (!(settings.speed >= 0.6 && settings.speed <= 1.4)) settings.speed = 1;
+const settings = Object.assign({ level: 'intermediate', speak: true, voice: '', speed: 1, tone: 'natural', emotion: 'neutral', veil: false, autoSend: true }, load('sf.settings', {}));
+if (typeof settings.speed !== 'number' || !(settings.speed >= 0.6 && settings.speed <= 1.4)) settings.speed = 1;
+if (!['natural', 'friendly', 'calm', 'soft', 'formal', 'energetic'].includes(settings.tone)) settings.tone = 'natural';
+if (!['neutral', 'happy', 'excited', 'sad', 'angry', 'empathetic', 'confident', 'expressive'].includes(settings.emotion)) settings.emotion = 'neutral';
 function saveSettings() { store('sf.settings', settings); }
+function speechSettings() { return { speed: settings.speed, tone: settings.tone, emotion: settings.emotion }; }
 function renderSettings() {
   document.querySelectorAll('#levelSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.level === settings.level)));
   $('#optSpeak').checked = settings.speak;
@@ -509,6 +515,11 @@ function renderSettings() {
   const voices = state.boot?.voices || [];
   const sel = $('#optVoice'); sel.replaceChildren(...voices.map(v => el('option', { value: v.id }, v.label)));
   sel.value = currentVoice();
+  for (const [id, key, optionsKey] of [['optTone', 'tone', 'tones'], ['optEmotion', 'emotion', 'emotions']]) {
+    const select = $('#' + id);
+    select.replaceChildren(...(state.boot?.speech_options?.[optionsKey] || []).map(v => el('option', { value: v.id }, v.label)));
+    select.value = settings[key];
+  }
 }
 function currentVoice() {
   const ids = (state.boot?.voices || []).map(v => v.id);
@@ -522,6 +533,23 @@ $('#optAutoSend').onchange = e => { settings.autoSend = e.target.checked; saveSe
 $('#optVoice').onchange = e => { settings.voice = e.target.value; saveSettings(); playTts('Hi, this is how I sound.'); };
 $('#optRate').oninput = e => { settings.speed = Number(e.target.value); $('#rateLabel').textContent = `${settings.speed.toFixed(2)}×`; saveSettings(); };
 $('#optRate').onchange = () => playTts('This is my speaking speed.');
+function selectStyleVoice() {
+  if (currentVoice().startsWith('qwen:')) return;
+  const voice = state.boot?.voices.find(v => v.id.startsWith('qwen:'));
+  if (voice) settings.voice = voice.id;
+  else toast('어조·감정은 AI 음성을 사용할 때 적용돼요.');
+}
+for (const [id, key] of [['optTone', 'tone'], ['optEmotion', 'emotion']]) {
+  $('#' + id).onchange = e => {
+    settings[key] = e.target.value; selectStyleVoice(); saveSettings(); renderSettings();
+    playTts('This is how I sound now.');
+  };
+}
+function applySpeechSettings(patch, message) {
+  for (const key of ['speed', 'tone', 'emotion', 'voice']) if (key in patch) settings[key] = patch[key];
+  stopAudio(); saveSettings(); renderSettings();
+  toast(message);
+}
 
 function openSheet(sel) { $(sel).hidden = false; }
 function closeSheet(sel) { $(sel).hidden = true; }
@@ -547,12 +575,14 @@ async function playTts(text, { speed = settings.speed, button = null } = {}) {
   stopAudio();
   const version = playbackVersion;
   const voice = currentVoice();
-  const key = `${voice}|${text}`;
+  const delivery = speechSettings();
+  const key = JSON.stringify([voice, delivery.tone, delivery.emotion, text]);
   try {
     let url = ttsCache.get(key);
     if (!url) {
-      const res = await fetch('/api/speech', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice }) });
+      const res = await fetch('/api/speech', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, voice, speech_settings: delivery }) });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || '음성 합성 실패');
+      if (res.headers.get('X-Speech-Style') === 'unavailable' && (delivery.tone !== 'natural' || delivery.emotion !== 'neutral')) toast('현재 재생 중인 macOS 음성은 어조·감정을 지원하지 않아요.');
       url = URL.createObjectURL(await res.blob());
       if (ttsCache.size > 40) { const [k, u] = ttsCache.entries().next().value; URL.revokeObjectURL(u); ttsCache.delete(k); }
       ttsCache.set(key, url);
@@ -686,7 +716,7 @@ function setTab(tab, { chat = false, navigation = true } = {}) {
   if (tab === 'review') loadReview();
   if (tab === 'growth') loadGrowth();
   if (view === 'home' && state.boot) renderHome();
-  if (chatOpen && !state.chatVisited) { state.chatVisited = true; scrollChat(); }
+  if (chatOpen) { state.chatVisited = true; scrollChat(); }
 }
 function closeSheets() { document.querySelectorAll('.sheet-backdrop').forEach(b => (b.hidden = true)); }
 function goHome() {
@@ -807,7 +837,17 @@ async function restoreSession() {
     }
   } catch { store('sf.session', null); }
 }
-function scrollChat() { const m = $('#messages'); requestAnimationFrame(() => (m.scrollTop = m.scrollHeight)); }
+let followChat = true, chatScrollFrame = 0, manualChatScrollUntil = 0;
+function scrollChat({ force = true } = {}) {
+  if (force) { followChat = true; manualChatScrollUntil = 0; }
+  if (!followChat || chatScrollFrame) return;
+  chatScrollFrame = requestAnimationFrame(() => {
+    chatScrollFrame = 0;
+    if (!state.chatOpen || !followChat) return;
+    const messages = $('#messages');
+    messages.scrollTop = Math.max(0, messages.scrollHeight - messages.clientHeight);
+  });
+}
 let alexAvatarUrl = '/static/alex.png';
 function addTutor(text, { veil = settings.veil } = {}) {
   const textEl = el('div', { class: 'text' }, text);
@@ -935,6 +975,7 @@ function renderAnalysis(user, text, a) {
     const visible = more?.open ? corrections : corrections.slice(0, 1);
     if (!visible.length) return;
     user.textEl.replaceChildren(highlight(text, visible.map(c => c.original), i => {
+      followChat = false;
       if (i > 0 && more) more.open = true;
       requestAnimationFrame(() => {
         cards[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -953,7 +994,7 @@ function renderAnalysis(user, text, a) {
     more = el('details', { class: 'more-corrections', ontoggle: () => {
       label.textContent = more.open ? '다른 교정 접기' : `다른 교정 ${corrections.length - 1}개 보기`;
       highlightVisibleCorrections();
-    } }, el('summary', {}, label), el('div', { class: 'more-corrections-body' }, ...cards.slice(1), natural));
+    } }, el('summary', { onclick: () => { followChat = false; } }, label), el('div', { class: 'more-corrections-body' }, ...cards.slice(1), natural));
     parts.push(more);
   } else {
     parts.push(...cards, natural);
@@ -988,16 +1029,19 @@ async function sendTurn(text, speakingSeconds = null) {
   try {
     const res = await fetch(`/api/sessions/${sessionId}/turns`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text, audio_seconds: speakingSeconds }),
+      body: JSON.stringify({ text, audio_seconds: speakingSeconds, voice: currentVoice(), speech_settings: speechSettings() }),
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Alex가 답하지 못했어요.');
     await readEvents(res, async (event, data) => {
       if (state.session?.id !== sessionId) return;
-      if (event === 'image') {
+      if (event === 'speech_settings') {
+        applySpeechSettings(data.settings, data.message);
+      } else if (event === 'image') {
         addTutorImage(data);
       } else if (event === 'reply') {
         replied = true;
         const t = addTutor(data.reply);
+        if (data.is_control) user.feedback.replaceChildren();
         state.busy = false; updateComposer(); setStatus('');
         if (settings.speak && state.chatOpen) playTts(data.reply, { button: t.speak });
       } else if (event === 'analysis') {
@@ -1094,17 +1138,52 @@ $('#textRow').onsubmit = e => {
   showVoice();
   sendTurn(text, seconds);
 };
-// Let the transcript reach the bottom of the wallpaper, with only enough
-// scroll space to keep the latest message above the floating voice controls.
+// Follow content/viewport changes while chatting. Only a deliberate scroll to
+// earlier messages pauses following; layout-induced scroll events do not.
+const messages = $('#messages');
+let chatTouchY = null;
+function chatAtBottom() { return messages.scrollHeight - messages.scrollTop - messages.clientHeight <= 4; }
+function manualChatScroll(up) {
+  manualChatScrollUntil = performance.now() + 800;
+  if (up) followChat = false;
+}
+messages.addEventListener('wheel', e => manualChatScroll(e.deltaY < 0), { passive: true });
+messages.addEventListener('touchstart', e => { chatTouchY = e.touches[0]?.clientY ?? null; }, { passive: true });
+messages.addEventListener('touchmove', e => {
+  const y = e.touches[0]?.clientY;
+  if (chatTouchY !== null && y != null) manualChatScroll(y > chatTouchY);
+  chatTouchY = y ?? null;
+}, { passive: true });
+messages.addEventListener('touchend', () => { chatTouchY = null; manualChatScrollUntil = performance.now() + 800; }, { passive: true });
+messages.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.clientX >= messages.getBoundingClientRect().right - 16) manualChatScroll(true);
+});
+messages.addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) manualChatScroll(['ArrowUp', 'PageUp', 'Home'].includes(e.key));
+});
+messages.addEventListener('scroll', () => {
+  if (performance.now() < manualChatScrollUntil) followChat = chatAtBottom();
+}, { passive: true });
+const transcriptObserver = new ResizeObserver(() => scrollChat({ force: false }));
+transcriptObserver.observe(messages);
+const transcriptMutations = new MutationObserver(records => {
+  for (const record of records) {
+    if (record.target !== messages) continue;
+    for (const node of record.addedNodes) if (node instanceof HTMLElement) transcriptObserver.observe(node);
+    for (const node of record.removedNodes) if (node instanceof HTMLElement) transcriptObserver.unobserve(node);
+  }
+  scrollChat({ force: false });
+});
+transcriptMutations.observe(messages, { childList: true, subtree: true, characterData: true });
 const composerObserver = new ResizeObserver(entries => {
   const height = entries[0].target.getBoundingClientRect().height;
   if (!height) return;
-  const messages = $('#messages');
-  const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 64;
   $('#chatView').style.setProperty('--composer-space', height + 'px');
-  if (atBottom) scrollChat();
+  scrollChat({ force: false });
 });
 composerObserver.observe($('.composer'));
+window.addEventListener('resize', () => scrollChat({ force: false }));
+window.visualViewport?.addEventListener('resize', () => scrollChat({ force: false }));
 
 // ------------------------------------------------------------ end of session report
 $('#endBtn').onclick = async () => {

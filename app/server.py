@@ -15,6 +15,7 @@ import coach
 import images
 import speech
 import store
+import voice_settings
 
 ROOT = Path(__file__).resolve().parent
 MAX_TURN_CHARS = 2000
@@ -52,6 +53,7 @@ def bootstrap():
         categories=coach.CATEGORIES,
         voices=speech.voices(),
         default_voice=speech.resolve_voice(None),
+        speech_options=voice_settings.options(),
         focus=info["focus"],
         review=info["review"],
         streak=info["streak"],
@@ -85,12 +87,16 @@ def session_detail(session_id: int):
     context = [session["opener"]]
     session["image"] = images.conversation_image(session["opener"] if images.explicit_scene(session["opener"]) in images.PLACES else "", session["topic"], generate=False)
     for turn in session["turns"]:
+        if turn["is_control"]:
+            turn["image"] = session["image"]
+            continue
         turn["image"] = images.conversation_image(turn["user_text"], session["topic"], context, generate=False)
         session["image"] = turn["image"]
         context.extend([turn["user_text"], turn["reply"]])
     if not app.config.get("TESTING"):
-        if session["turns"]:
-            latest = session["turns"][-1]
+        practice_turns = [t for t in session["turns"] if not t["is_control"]]
+        if practice_turns:
+            latest = practice_turns[-1]
             session["image"] = images.conversation_image(latest["user_text"], session["topic"], context[:-2])
         else:
             session["image"] = images.conversation_image(session["opener"] if images.explicit_scene(session["opener"]) in images.PLACES else "", session["topic"])
@@ -110,14 +116,35 @@ def session_turn(session_id: int):
         return jsonify(error=f"한 번에 {MAX_TURN_CHARS:,}자 이내로 말해 주세요."), 413
     audio_seconds = body.get("audio_seconds")
     audio_seconds = float(audio_seconds) if isinstance(audio_seconds, (int, float)) and not isinstance(audio_seconds, bool) and 0 < audio_seconds < 600 else None
+    speech_patch, conversation_text = voice_settings.chat_request(text, body.get("speech_settings"))
+    control_only = bool(speech_patch) and not conversation_text
     focus = store.current_focus()
-    history = store.conversation_history(session_id) + [{"role": "user", "content": text}]
+    history = store.conversation_history(session_id) + [{"role": "user", "content": conversation_text}]
 
     def events():
         yield sse("started", {})
-        yield sse("image", images.conversation_image(text, session["topic"],
+        if speech_patch:
+            message = voice_settings.confirmation(speech_patch)
+            style_unavailable = False
+            # Style requests select the engine that can actually express them.
+            if any(key in speech_patch for key in ("tone", "emotion")):
+                if speech.qwen_available():
+                    selected = str(body.get("voice") or "")
+                    speech_patch["voice"] = selected if selected in speech.QWEN_SPEAKERS else "qwen:aiden"
+                else:
+                    style_unavailable = True
+                    message += " (현재 macOS 음성은 어조·감정을 지원하지 않아 AI 음성을 사용할 때 적용돼요.)"
+            yield sse("speech_settings", {"settings": speech_patch, "message": message})
+        if control_only:
+            reply = voice_settings.spoken_confirmation(speech_patch)
+            if style_unavailable:
+                reply = "I've saved your voice preferences. Tone and emotion will apply when the AI voice is available."
+            turn_id = store.add_turn(session_id, text, reply, None, is_control=True)
+            yield sse("reply", {"turn_id": turn_id, "reply": reply, "is_control": True})
+            return
+        yield sse("image", images.conversation_image(conversation_text, session["topic"],
                   [item["content"] for item in history[:-1]],
-                  generate=bool(images.explicit_scene(text)) and not images.needs_scene_interpretation(text)
+                  generate=bool(images.explicit_scene(conversation_text)) and not images.needs_scene_interpretation(conversation_text)
                   and not app.config.get("TESTING")))
         try:
             reply = coach.generate_reply(history, session["topic"], session["level"], focus)
@@ -128,17 +155,17 @@ def session_turn(session_id: int):
         yield sse("reply", {"turn_id": turn_id, "reply": reply})
         # Begin unfamiliar-topic generation as soon as the reply is sent,
         # rather than waiting for corrections and the speaking guide.
-        if not app.config.get("TESTING") and images.needs_scene_interpretation(text):
-            yield sse("image", images.conversation_image(text, session["topic"],
+        if not app.config.get("TESTING") and images.needs_scene_interpretation(conversation_text):
+            yield sse("image", images.conversation_image(conversation_text, session["topic"],
                       [item["content"] for item in history[:-1]]))
         try:
-            analysis = store.save_analysis(turn_id, coach.analyze(text, focus))
+            analysis = store.save_analysis(turn_id, coach.analyze(conversation_text, focus))
         except LLM_ERRORS as exc:
             yield sse("analysis_error", {"turn_id": turn_id, "error": f"교정 분석에 실패했어요: {exc}"})
             return
         yield sse("analysis", {"turn_id": turn_id, **analysis})
         previous_question = next((item["content"] for item in reversed(history[:-1]) if item["role"] == "assistant"), "")
-        guide = coach.short_answer_guide(text, previous_question, session["level"])
+        guide = coach.short_answer_guide(conversation_text, previous_question, session["level"])
         if guide:
             store.save_guide(turn_id, guide)
             yield sse("guide", {"turn_id": turn_id, **guide})
@@ -217,10 +244,12 @@ def synthesize():
         return jsonify(error="Speech text must contain 1–2,000 characters."), 400
     # Playback speed is applied by the browser (pitch-preserving), so every engine behaves the same.
     try:
-        audio = speech.synthesize_wav(text, str(body.get("voice") or ""))
+        audio = speech.synthesize_wav(text, str(body.get("voice") or ""), voice_settings.normalize_settings(body.get("speech_settings")))
     except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         return jsonify(error=f"Local speech synthesis failed: {exc}"), 503
-    return send_file(BytesIO(audio), mimetype="audio/wav", download_name="speech.wav")
+    response = send_file(BytesIO(audio), mimetype="audio/wav", download_name="speech.wav")
+    response.headers["X-Speech-Style"] = "available" if speech.resolve_voice(str(body.get("voice") or "")) in speech.QWEN_SPEAKERS else "unavailable"
+    return response
 
 
 @app.post("/api/transcribe")

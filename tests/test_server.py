@@ -325,7 +325,7 @@ def test_qwen_failure_falls_back_to_say(monkeypatch):
 
 
 def test_speech_endpoint(client, monkeypatch):
-    monkeypatch.setattr(speech, "synthesize_wav", lambda text, voice: b"RIFF")
+    monkeypatch.setattr(speech, "synthesize_wav", lambda text, voice, delivery: b"RIFF")
     assert client.post("/api/speech", json={"text": ""}).status_code == 400
     ok = client.post("/api/speech", json={"text": "hi", "voice": "whatever"})
     assert ok.status_code == 200 and ok.data == b"RIFF"
