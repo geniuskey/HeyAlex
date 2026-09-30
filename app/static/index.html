@@ -128,7 +128,7 @@ body.typing .tabbar { display: none; }
 
 /* ---------- chat ---------- */
 .messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 16px; }
-.msg { max-width: 88%; display: flex; flex-direction: column; gap: 6px; }
+.msg { max-width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .msg.tutor { align-self: flex-start; display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 9px; align-items: start; }
 .message-avatar { width: 40px; height: 40px; object-fit: cover; border-radius: 15px; background: #eee5d6; }
 .message-content { grid-column: 2; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
@@ -136,7 +136,7 @@ body.typing .tabbar { display: none; }
 .msg.tutor.continuation { margin-top: -10px; }
 .msg.tutor.continuation .message-content { grid-column: 2; }
 .msg.tutor.continuation .bubble { border-top-left-radius: 10px; }
-.msg.user { align-self: flex-end; align-items: flex-end; max-width: 92%; }
+.msg.user { align-self: flex-end; align-items: flex-end; max-width: calc(100% - 49px); }
 .bubble { padding: 11px 14px; border-radius: 10px; font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; position: relative; }
 .tutor .bubble { background: var(--surface); box-shadow: 0 1px 2px #00000014; }
 .tutor:not(.continuation) .bubble::before { content: ''; position: absolute; top: 9px; left: -7px; border-top: 0 solid transparent; border-bottom: 9px solid transparent; border-right: 8px solid color-mix(in srgb, var(--surface) 96%, transparent); }
@@ -145,7 +145,7 @@ body.typing .tabbar { display: none; }
 .view.chat-view { isolation: isolate; background: var(--surface-2); --user: #fee500; }
 .chat-wallpaper { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; z-index: -2; }
 .chat-view::before { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 35%, transparent); z-index: -1; pointer-events: none; }
-.chat-view .tutor .bubble, .chat-view .feedback-focus { font-size: 12px; color: var(--accent); font-weight: 650; padding: 2px 4px; text-align: left; }
+.feedback-focus { font-size: 12px; color: var(--accent); font-weight: 650; padding: 2px 4px; text-align: left; }
 .more-corrections { min-width: 0; text-align: left; }
 .more-corrections > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink-2); font-size: 13px; cursor: pointer; list-style: none; }
 .more-corrections > summary::-webkit-details-marker { display: none; }
@@ -154,12 +154,10 @@ body.typing .tabbar { display: none; }
 .more-corrections > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .more-corrections:not([open]) .more-corrections-body { display: none; }
 .more-corrections-body { display: grid; gap: 8px; padding-top: 8px; }
-.corr { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+.chat-view .tutor .bubble, .chat-view .corr { background: color-mix(in srgb, var(--surface) 96%, transparent); }
 .chat-view .user > .bubble { background: var(--user); color: #29251a; }
 .chat-view .composer { position: relative; isolation: isolate; background: transparent; border-top-color: transparent; }
 .chat-view .composer::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; z-index: -1; background: color-mix(in srgb, var(--bg) 94%, transparent); border-radius: 20px 20px 0 0; border-top: 1px solid var(--line); pointer-events: none; }
- .scene-status { flex: none; padding: 8px 14px 0; text-align: center; }
-.scene-caption { display: inline-block; max-width: 100%; font-size: 11px; color: var(--ink-2); padding: 3px 9px; border-radius: 99px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
 .speaking-guide { background: color-mix(in srgb, var(--surface) 96%, transparent); border: 1px solid var(--accent); border-radius: 14px; padding: 12px; text-align: left; box-shadow: var(--shadow); }
 .speaking-guide .label { font-size: 13px; font-weight: 700; color: var(--accent); }
 .speaking-guide p { margin: 6px 0; }
@@ -174,7 +172,7 @@ body.typing .tabbar { display: none; }
 .msg-actions .mini.playing { color: var(--accent); }
 .user .bubble mark { background: var(--err-soft); color: inherit; border-radius: 4px; padding: 0 2px; text-decoration: underline wavy var(--err); text-decoration-skip-ink: none; text-underline-offset: 3px; cursor: pointer; }
 .voice-tag { font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 4px; padding-right: 4px; }
-.feedback { width: 100%; min-width: min(320px, 80vw); display: grid; gap: 8px; }
+.feedback { width: 100%; min-width: min(320px, calc(100vw - 77px)); display: grid; gap: 8px; }
 .fb-pending { font-size: 13px; color: var(--ink-3); padding: 2px 6px; text-align: right; }
 .fb-ok { font-size: 13px; color: var(--ok); font-weight: 650; padding: 2px 6px; text-align: right; }
 .corr { background: var(--surface); border-radius: 14px; padding: 12px 12px 10px; box-shadow: var(--shadow); border-left: 3px solid var(--err); }
@@ -330,9 +328,6 @@ body.typing .tabbar { display: none; }
     <!-- Talk: active session -->
     <section class="view chat-view" id="chatView" hidden aria-label="대화">
       <img class="chat-wallpaper" id="sceneImage" src="/static/wallpapers/home.png" alt="저녁 햇살이 드는 거실" width="432" height="768">
-      <div class="scene-status">
-        <span class="scene-caption" id="sceneCaption" role="status">저녁 햇살이 드는 거실</span>
-      </div>
       <div class="messages" id="messages" aria-live="polite"></div>
       <div class="composer">
         <div class="status-line" id="status"></div>
@@ -771,7 +766,6 @@ function resetCallImage() {
   sceneVersion++; avatarVersion++;
   $('#sceneImage').src = '/static/wallpapers/home.png';
   $('#sceneImage').alt = '저녁 햇살이 드는 거실';
-  $('#sceneCaption').textContent = '저녁 햇살이 드는 거실';
 }
 async function waitForImage(image, isCurrent) {
   const deadline = Date.now() + 360000;
@@ -801,16 +795,13 @@ async function addTutorImage(image) {
   const version = ++sceneVersion;
   const isCurrent = () => version === sceneVersion;
   // Leave the current picture visible during generation and image loading.
-  $('#sceneCaption').textContent = image.status === 'pending' ? `${image.alt} · 배경 준비 중…` : image.alt;
   try {
     image = await waitForImage(image, isCurrent);
     if (!image) return;
     if (image.keep_current && image.status === 'ready') {
-      $('#sceneCaption').textContent = $('#sceneImage').alt;
       return;
     }
     if (image.status === 'error') {
-      $('#sceneCaption').textContent = image.error;
       return;
     }
     const picture = new Image();
@@ -819,10 +810,7 @@ async function addTutorImage(image) {
     if (!isCurrent()) return;
     $('#sceneImage').src = image.url;
     $('#sceneImage').alt = image.alt || '대화 배경';
-    $('#sceneCaption').textContent = image.alt || '대화 배경';
-  } catch {
-    if (isCurrent()) $('#sceneCaption').textContent = '이미지를 불러오지 못했어요. 현재 이미지를 유지합니다.';
-  }
+  } catch { /* Keep the current wallpaper if loading fails. */ }
 }
 function addUser(text, { voice = false } = {}) {
   const textEl = el('div', { class: 'text' }, text);
