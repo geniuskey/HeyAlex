@@ -57,7 +57,7 @@ The app listens only on loopback and the Tailscale IP. It has no login, so acces
 
 - No acoustic pronunciation scoring: feedback is based on the transcript only.
 - The 4B model still occasionally over-corrects or mislabels a category. Every correction card can be judged on retry ("맞게 말했는데 잘못 들렸어요" overrides a misheard answer).
-- New 432×768 (9:16) wallpapers took about 25 s each with the local model loaded in the latest run. The current picture remains visible during generation; reply and correction streaming do not wait for the image. GPU work may still compete with local speech/LLM inference.
+- New wallpapers are generated at 288×512 (9:16) and enlarged to fill the chat view. This uses 44% of the pixels of the previous 432×768 setting; actual generation time still depends on model loading and local GPU contention. The current picture remains visible during generation; reply and correction streaming do not wait for the image.
 - Alex uses the same portrait for each message group so identity stays exact. The portrait is a still image, without lip synchronization.
 
 ## Local image generation
@@ -70,7 +70,7 @@ Required ComfyUI model filenames (or override with `IMAGE_MODEL`, `IMAGE_TEXT_EN
 - `qwen3vl_8b_int8_convrot.safetensors`
 - `qwen_image_2.1_vae_bf16.safetensors`
 
-Generated 9:16 PNGs and context manifests live in `app/static/generated/wallpapers/` and are reused across sessions and server restarts. Rome, Paris, London, Seoul, Tokyo, Kyoto and New York are recognized explicitly. Longer messages and unfamiliar important keywords outside the scene vocabulary are interpreted by the local conversation model in a background job. Pending results are polled through `/api/images/jobs/<key>`; errors keep the displayed picture. The browser discards outdated results after a newer topic update or session change. `IMAGE_TIMEOUT` controls the ComfyUI job deadline (default 240 seconds).
+Generated 9:16 PNGs and context manifests live in `app/static/generated/wallpapers/` and are reused across sessions and server restarts. `IMAGE_WIDTH` and `IMAGE_HEIGHT` override the default 288×512 generation size. Rome, Paris, London, Seoul, Tokyo, Kyoto and New York are recognized explicitly. Known scenes switch immediately, without an extra language-model pass. Unfamiliar keywords also work in short answers such as “I like dolphins”; interpretation starts in a background job immediately after Alex's reply, before corrections and speaking guides finish. Pending results are polled through `/api/images/jobs/<key>`; errors keep the displayed picture. The browser discards outdated results after a newer topic update or session change. `IMAGE_TIMEOUT` controls the ComfyUI job deadline (default 240 seconds).
 
 ## Short-answer speaking guide
 
@@ -78,4 +78,6 @@ After corrections stream, replies of 1–7 English words can receive a separate 
 
 Corrections are presented one at a time: the highest-priority correction is visible, while other corrections and the full-sentence rewrite are collapsed under “다른 교정 N개 보기”. Only visible corrections are highlighted in the learner’s message. Expanding the section shows the remaining explanations and practice controls.
 
-The composer opens in voice mode on every session and reload. The main microphone stays centered, and an icon-only keyboard button on the left expands the optional text input above the voice controls. Sending typed text returns to the voice layout.
+The composer opens in voice mode on every session and reload. The main microphone stays centered, and an icon-only keyboard button on the left expands the optional text input above the voice controls. These controls float over the wallpaper; the transcript extends to the bottom with scroll space that adjusts to the controls' height. Sending typed text returns to the voice layout.
+
+The header back button and browser back navigation return to the home screen. Returning home stops recording and playback while preserving the conversation, which can be reopened with “대화 이어가기”. The home tab always opens the home screen. Browser history also restores the chat, review and growth views on reload or forward navigation.

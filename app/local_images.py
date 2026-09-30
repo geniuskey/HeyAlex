@@ -14,6 +14,10 @@ import urllib.request
 BASE_URL = os.environ.get('IMAGE_BASE_URL', 'http://127.0.0.1:8188').rstrip('/')
 COMFY_DIR = Path(os.environ.get('COMFYUI_DIR', str(Path.home() / 'ComfyUI-standalone')))
 TIMEOUT = int(os.environ.get('IMAGE_TIMEOUT', '240'))
+# Small 9:16 backgrounds are enlarged by the browser; retain the sampling
+# quality while reducing the number of pixels to 44% of the previous size.
+WALLPAPER_WIDTH = int(os.environ.get('IMAGE_WIDTH', '288'))
+WALLPAPER_HEIGHT = int(os.environ.get('IMAGE_HEIGHT', '512'))
 _lock = threading.Lock()
 _process = None
 
@@ -57,7 +61,7 @@ def ensure_server():
     raise TimeoutError('로컬 이미지 서버 시작 시간이 초과됐어요.')
 
 
-def workflow(prompt, width=432, height=768):
+def workflow(prompt, width=WALLPAPER_WIDTH, height=WALLPAPER_HEIGHT):
     return {
         '1': {'class_type': 'UNETLoader', 'inputs': {'unet_name': os.environ.get('IMAGE_MODEL', 'qwen_image_2.1_int8_convrot.safetensors'), 'weight_dtype': 'default'}},
         '2': {'class_type': 'CLIPLoader', 'inputs': {'clip_name': os.environ.get('IMAGE_TEXT_ENCODER', 'qwen3vl_8b_int8_convrot.safetensors'), 'type': 'qwen_image', 'device': 'default'}},
@@ -70,7 +74,7 @@ def workflow(prompt, width=432, height=768):
     }
 
 
-def generate(prompt, destination, *, width=432, height=768):
+def generate(prompt, destination, *, width=WALLPAPER_WIDTH, height=WALLPAPER_HEIGHT):
     # Serialize GPU work; never hold up the conversation's SSE response.
     with _lock:
         ensure_server()

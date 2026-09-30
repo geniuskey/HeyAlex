@@ -117,7 +117,8 @@ def session_turn(session_id: int):
         yield sse("started", {})
         yield sse("image", images.conversation_image(text, session["topic"],
                   [item["content"] for item in history[:-1]],
-                  generate=bool(images.explicit_scene(text)) and not app.config.get("TESTING")))
+                  generate=bool(images.explicit_scene(text)) and not images.needs_scene_interpretation(text)
+                  and not app.config.get("TESTING")))
         try:
             reply = coach.generate_reply(history, session["topic"], session["level"], focus)
         except LLM_ERRORS as exc:
@@ -125,6 +126,11 @@ def session_turn(session_id: int):
             return
         turn_id = store.add_turn(session_id, text, reply, audio_seconds)
         yield sse("reply", {"turn_id": turn_id, "reply": reply})
+        # Begin unfamiliar-topic generation as soon as the reply is sent,
+        # rather than waiting for corrections and the speaking guide.
+        if not app.config.get("TESTING") and images.needs_scene_interpretation(text):
+            yield sse("image", images.conversation_image(text, session["topic"],
+                      [item["content"] for item in history[:-1]]))
         try:
             analysis = store.save_analysis(turn_id, coach.analyze(text, focus))
         except LLM_ERRORS as exc:
@@ -136,10 +142,6 @@ def session_turn(session_id: int):
         if guide:
             store.save_guide(turn_id, guide)
             yield sse("guide", {"turn_id": turn_id, **guide})
-        # Interpret unfamiliar or more specific subjects after reply/analysis are sent.
-        if not app.config.get("TESTING") and images.needs_scene_interpretation(text):
-            yield sse("image", images.conversation_image(text, session["topic"],
-                      [item["content"] for item in history[:-1]]))
 
     return sse_response(events())
 

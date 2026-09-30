@@ -75,6 +75,7 @@ textarea, input, select { font: inherit; color: inherit; }
 .icon-btn { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--ink-2); flex: none; }
 .icon-btn:active { background: var(--surface-2); }
 .icon-btn svg { width: 22px; height: 22px; }
+#backBtn { margin-left: -8px; }
 .pill-btn { height: 34px; padding: 0 14px; border-radius: 99px; background: var(--surface-2); font-size: 14px; font-weight: 600; flex: none; }
 .streak { font-size: 13px; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 99px; padding: 4px 10px; flex: none; }
 main { min-height: 0; position: relative; }
@@ -125,9 +126,16 @@ body.typing .tabbar { display: none; }
 .topic.wide { grid-column: 1 / -1; min-height: 0; flex-direction: row; align-items: center; gap: 12px; justify-content: flex-start; background: var(--accent); color: var(--accent-ink); }
 .topic.wide small { display: block; font-size: 12px; opacity: .8; font-weight: 500; }
 .topic:active { transform: scale(.98); }
+.resume-chat { width: 100%; display: flex; align-items: center; gap: 12px; margin-bottom: 16px; text-align: left; border: 1px solid var(--accent-soft); }
+.resume-chat img { width: 48px; height: 48px; object-fit: cover; border-radius: 16px; }
+.resume-chat .copy { flex: 1; min-width: 0; }
+.resume-chat b, .resume-chat small { display: block; }
+.resume-chat small { color: var(--ink-2); margin-top: 2px; }
+.resume-chat .arrow { color: var(--accent); font-size: 24px; }
 
 /* ---------- chat ---------- */
-.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 16px; }
+.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px calc(var(--composer-space, 138px) + 12px); scroll-padding-bottom: calc(var(--composer-space, 138px) + 12px); display: flex; flex-direction: column; gap: 16px; }
+.messages > .msg { flex-shrink: 0; }
 .msg { max-width: 100%; display: flex; flex-direction: column; gap: 6px; }
 .msg.tutor { align-self: flex-start; display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 9px; align-items: start; }
 .message-avatar { width: 40px; height: 40px; object-fit: cover; border-radius: 15px; background: #eee5d6; }
@@ -156,8 +164,8 @@ body.typing .tabbar { display: none; }
 .more-corrections-body { display: grid; gap: 8px; padding-top: 8px; }
 .chat-view .tutor .bubble, .chat-view .corr { background: color-mix(in srgb, var(--surface) 96%, transparent); }
 .chat-view .user > .bubble { background: var(--user); color: #29251a; }
-.chat-view .composer { position: relative; isolation: isolate; background: transparent; border-top-color: transparent; }
-.chat-view .composer::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; z-index: -1; background: color-mix(in srgb, var(--bg) 94%, transparent); border-radius: 20px 20px 0 0; border-top: 1px solid var(--line); pointer-events: none; }
+.chat-view .composer { position: absolute; inset: auto 0 0; z-index: 2; background: transparent; border: 0; pointer-events: none; }
+.composer button, .composer textarea { pointer-events: auto; }
 .speaking-guide { background: color-mix(in srgb, var(--surface) 96%, transparent); border: 1px solid var(--accent); border-radius: 14px; padding: 12px; text-align: left; box-shadow: var(--shadow); }
 .speaking-guide .label { font-size: 13px; font-weight: 700; color: var(--accent); }
 .speaking-guide p { margin: 6px 0; }
@@ -200,10 +208,12 @@ body.typing .tabbar { display: none; }
 .failed { font-size: 13px; color: var(--err); text-align: right; }
 .failed button { text-decoration: underline; color: var(--err); font-size: 13px; margin-left: 6px; }
 
-.composer { padding: 8px 14px calc(10px + 0px); border-top: 1px solid var(--line); background: var(--bg); }
-.status-line { font-size: 13px; color: var(--ink-3); text-align: center; min-height: 20px; margin-bottom: 4px; }
+.composer { padding: 8px 14px 10px; }
+.status-line { width: fit-content; max-width: 100%; margin: 0 auto 8px; padding: 5px 12px; border-radius: 99px; background: color-mix(in srgb, var(--surface) 94%, transparent); box-shadow: var(--shadow); font-size: 13px; color: var(--ink-2); text-align: center; }
+.status-line:empty { display: none; }
 .voice-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; min-height: 96px; }
-.voice-row #toKeyboard { justify-self: start; background: transparent; color: var(--ink-2); }
+.voice-row .round { background: color-mix(in srgb, var(--surface) 96%, transparent); box-shadow: var(--shadow); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+.voice-row #toKeyboard { justify-self: start; color: var(--ink-2); }
 .voice-row #toKeyboard[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
 .voice-row #cancelRec { justify-self: end; }
 .voice-row #toKeyboard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -313,6 +323,9 @@ body.typing .tabbar { display: none; }
 <body>
 <div class="app">
   <header class="topbar">
+    <button class="icon-btn" id="backBtn" type="button" aria-label="홈으로 돌아가기" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m14 5-7 7 7 7"/></svg>
+    </button>
     <h1 id="title">Hey Alex</h1>
     <span class="streak" id="streak" hidden></span>
     <button class="pill-btn" id="endBtn" type="button" hidden>마치기</button>
@@ -407,7 +420,9 @@ const TOPIC_EMOJI = { free: '💬', day: '☀️', work: '💼', hobby: '🎸', 
 const STATUS = { focus: ['집중 필요', 'err'], watch: ['관찰 중', 'warn'], improving: ['좋아지는 중', 'ok'], stable: ['안정', ''] };
 const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA=';
 
-const state = { boot: null, tab: 'talk', session: null, busy: false, review: null };
+const state = { boot: null, tab: 'talk', session: null, chatOpen: false, chatVisited: false, busy: false, review: null };
+const initialView = history.state?.heyAlex ? history.state.view : location.hash.slice(1);
+const homeUrl = location.pathname + location.search;
 
 // ------------------------------------------------------------ helpers
 function el(tag, attrs = {}, ...children) {
@@ -518,7 +533,7 @@ window.addEventListener('keydown', e => { if (e.key === 'Escape') document.query
 // ------------------------------------------------------------ audio out (local TTS)
 // iOS only lets an <audio> element play without a gesture after it has played once from one.
 const player = new Audio();
-let audioUnlocked = false, playingButton = null;
+let audioUnlocked = false, playingButton = null, playbackVersion = 0;
 const ttsCache = new Map();
 document.addEventListener('pointerdown', () => {
   if (audioUnlocked) return;
@@ -527,9 +542,10 @@ document.addEventListener('pointerdown', () => {
 player.addEventListener('ended', () => setPlaying(null));
 player.addEventListener('pause', () => setPlaying(null));
 function setPlaying(button) { playingButton?.classList.remove('playing'); playingButton = button; button?.classList.add('playing'); }
-function stopAudio() { player.pause(); setPlaying(null); }
+function stopAudio() { playbackVersion++; player.pause(); setPlaying(null); }
 async function playTts(text, { speed = settings.speed, button = null } = {}) {
   stopAudio();
+  const version = playbackVersion;
   const voice = currentVoice();
   const key = `${voice}|${text}`;
   try {
@@ -541,13 +557,14 @@ async function playTts(text, { speed = settings.speed, button = null } = {}) {
       if (ttsCache.size > 40) { const [k, u] = ttsCache.entries().next().value; URL.revokeObjectURL(u); ttsCache.delete(k); }
       ttsCache.set(key, url);
     }
+    if (version !== playbackVersion) return;
     player.src = url;
     player.preservesPitch = true; player.webkitPreservesPitch = true;
     player.defaultPlaybackRate = player.playbackRate = speed;
     await player.play();
-    setPlaying(button);
+    if (version === playbackVersion) setPlaying(button);
   } catch (e) {
-    if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') toast(e.message);
+    if (version === playbackVersion && e.name !== 'AbortError' && e.name !== 'NotAllowedError') toast(e.message);
   }
 }
 function speakerButton(text, label = '') {
@@ -590,7 +607,7 @@ async function startRecording(owner, onLevel) {
       rec.onstop = () => { cleanup(); resolve({ blob: new Blob(chunks, { type: rec.mimeType || mime || 'audio/webm' }), seconds: (performance.now() - started) / 1000 }); };
       rec.stop();
     }),
-    cancel: () => { rec.onstop = cleanup; owner.classList.remove('recording'); capture?.onState?.('idle'); rec.stop(); },
+    cancel: () => { if (rec.state === 'inactive') return; rec.onstop = cleanup; owner.classList.remove('recording'); capture?.onState?.('idle'); rec.stop(); },
   };
   capture.timer = setTimeout(() => capture?.owner === owner && owner.click(), 90_000);
   return capture;
@@ -620,6 +637,7 @@ async function toggleCapture(button, onText, { onLevel, onState } = {}) {
   try {
     await startRecording(button, onLevel);
     capture.onState = onState;
+    if (button.closest('.view')?.hidden) { capture.cancel(); return; }
     button.classList.add('recording');
     onState?.('recording');
   } catch (e) {
@@ -629,17 +647,36 @@ async function toggleCapture(button, onText, { onLevel, onState } = {}) {
 }
 
 // ------------------------------------------------------------ tabs
-function setTab(tab) {
+function setTab(tab, { chat = false, navigation = true } = {}) {
+  const chatOpen = tab === 'talk' && chat && !!state.session;
+  const view = chatOpen ? 'chat' : tab === 'talk' ? 'home' : tab;
+  if (navigation && view === 'home' && history.state?.heyAlex && history.state.view !== 'home') {
+    goHome();
+    return;
+  }
+  if (navigation && history.state?.view !== view) {
+    const route = { heyAlex: true, view };
+    const url = homeUrl + (view === 'home' ? '' : '#' + view);
+    if (history.state?.heyAlex && history.state.view !== 'home') history.replaceState(route, '', url);
+    else history.pushState(route, '', url);
+  }
+  if (!chatOpen) {
+    stopAudio();
+    capture?.cancel();
+    showVoice();
+  }
   state.tab = tab;
+  state.chatOpen = chatOpen;
   document.querySelectorAll('.tabbar button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
-  $('#homeView').hidden = !(tab === 'talk' && !state.session);
-  $('#chatView').hidden = !(tab === 'talk' && state.session);
+  $('#homeView').hidden = view !== 'home';
+  $('#chatView').hidden = !chatOpen;
   $('#reviewView').hidden = tab !== 'review';
   $('#growthView').hidden = tab !== 'growth';
-  $('#endBtn').hidden = !(tab === 'talk' && state.session);
-  $('#streak').hidden = !(tab === 'talk' && !state.session && state.boot?.streak);
+  $('#endBtn').hidden = !chatOpen;
+  $('#backBtn').hidden = view === 'home';
+  $('#streak').hidden = !(view === 'home' && state.boot?.streak);
   if (tab === 'talk') {
-    $('#title').replaceChildren(state.session
+    $('#title').replaceChildren(chatOpen
       ? el('span', {}, `${TOPIC_EMOJI[state.session.topic] || '💬'} ${state.boot?.topics.find(t => t.id === state.session.topic)?.label || '대화'}`,
           state.session.focus?.length ? el('small', {}, '집중: ' + state.session.focus.map(catLabel).join(' · ')) : null)
       : 'Hey Alex');
@@ -648,8 +685,37 @@ function setTab(tab) {
   }
   if (tab === 'review') loadReview();
   if (tab === 'growth') loadGrowth();
-  if (tab !== 'talk' && capture) capture.cancel();
+  if (view === 'home' && state.boot) renderHome();
+  if (chatOpen && !state.chatVisited) { state.chatVisited = true; scrollChat(); }
 }
+function closeSheets() { document.querySelectorAll('.sheet-backdrop').forEach(b => (b.hidden = true)); }
+function goHome() {
+  closeSheets();
+  stopAudio();
+  capture?.cancel();
+  showVoice();
+  if (history.state?.heyAlex && history.state.view !== 'home') history.back();
+  else {
+    history.replaceState({ heyAlex: true, view: 'home' }, '', homeUrl);
+    setTab('talk', { navigation: false });
+  }
+}
+function showRoute(view) {
+  if (view === 'chat' && state.session) setTab('talk', { chat: true, navigation: false });
+  else if (view === 'review' || view === 'growth') setTab(view, { navigation: false });
+  else {
+    history.replaceState({ heyAlex: true, view: 'home' }, '', homeUrl);
+    setTab('talk', { navigation: false });
+  }
+}
+$('#backBtn').onclick = goHome;
+window.addEventListener('popstate', e => {
+  closeSheets();
+  stopAudio();
+  capture?.cancel();
+  showVoice();
+  showRoute(e.state?.heyAlex ? e.state.view : 'home');
+});
 document.querySelector('.tabbar').onclick = e => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); };
 function updateReviewBadge(due) {
   const badge = $('#reviewBadge');
@@ -679,9 +745,13 @@ function renderHome() {
         el('div', {}, el('b', {}, '복습할 문장이 있어요'), el('span', {}, '틀렸던 문장을 다시 말해 보면 오래 기억돼요')))
     : null;
   const topics = b.topics.filter(t => t.id !== 'focus');
+  const resume = state.session ? el('button', { class: 'card resume-chat', type: 'button', onclick: () => setTab('talk', { chat: true }) },
+    el('img', { src: alexAvatarUrl, alt: '', width: 48, height: 48 }),
+    el('span', { class: 'copy' }, el('b', {}, '대화 이어가기'), el('small', {}, b.topics.find(t => t.id === state.session.topic)?.label || 'Alex와의 대화')),
+    el('span', { class: 'arrow', 'aria-hidden': 'true' }, '›')) : null;
   $('#homeView').replaceChildren(
     el('div', { class: 'hello' }, el('h2', {}, greet), el('p', {}, b.today_words ? `오늘 ${b.today_words}단어를 말했어요. 조금 더 해볼까요?` : '오늘도 5분만 영어로 이야기해 봐요.')),
-    focus, nudge,
+    resume, focus, nudge,
     el('div', { class: 'section-title' }, '대화 시작하기'),
     el('div', { class: 'topics' },
       b.focus.length ? el('button', { class: 'topic wide', type: 'button', onclick: () => startSession('focus') },
@@ -699,6 +769,7 @@ async function startSession(topic) {
   try {
     const s = await api('/api/sessions', { json: { topic, level: settings.level } });
     state.session = { id: s.id, topic: s.topic, focus: s.focus };
+    state.chatVisited = false;
     store('sf.session', s.id);
     $('#messages').replaceChildren();
     showVoice();
@@ -706,7 +777,7 @@ async function startSession(topic) {
     addTutorImage({ ...s.image, keep_current: false });
     loadAlexImage();
     $('#toast').hidden = true;
-    setTab('talk');
+    setTab('talk', { chat: true });
     const t = addTutor(s.opener);
     if (settings.speak) playTts(s.opener, { button: t.speak });
   } catch (e) {
@@ -722,6 +793,7 @@ async function restoreSession() {
     const s = await api(`/api/sessions/${id}`);
     if (s.ended) { store('sf.session', null); return; }
     state.session = { id: s.id, topic: s.topic, focus: [] };
+    state.chatVisited = false;
     $('#messages').replaceChildren();
     showVoice();
     resetCallImage();
@@ -770,7 +842,7 @@ function resetCallImage() {
 async function waitForImage(image, isCurrent) {
   const deadline = Date.now() + 360000;
   while (image.status === 'pending' && image.job_url && Date.now() < deadline) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise(resolve => setTimeout(resolve, 750));
     if (!isCurrent()) return null;
     const result = await api(image.job_url);
     image = { ...image, ...result };
@@ -908,24 +980,26 @@ function speakingGuideCard(guide) {
 async function sendTurn(text, speakingSeconds = null) {
   text = text.trim();
   if (!text || state.busy || !state.session) return;
+  const sessionId = state.session.id;
   stopAudio();
   state.busy = true; updateComposer(); setStatus('Alex가 생각하는 중', true);
   const user = addUser(text, { voice: !!speakingSeconds });
   let replied = false;
   try {
-    const res = await fetch(`/api/sessions/${state.session.id}/turns`, {
+    const res = await fetch(`/api/sessions/${sessionId}/turns`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, audio_seconds: speakingSeconds }),
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Alex가 답하지 못했어요.');
     await readEvents(res, async (event, data) => {
+      if (state.session?.id !== sessionId) return;
       if (event === 'image') {
         addTutorImage(data);
       } else if (event === 'reply') {
         replied = true;
         const t = addTutor(data.reply);
         state.busy = false; updateComposer(); setStatus('');
-        if (settings.speak) playTts(data.reply, { button: t.speak });
+        if (settings.speak && state.chatOpen) playTts(data.reply, { button: t.speak });
       } else if (event === 'analysis') {
         renderAnalysis(user, text, data);
         refreshBoot().catch(() => {});
@@ -940,6 +1014,7 @@ async function sendTurn(text, speakingSeconds = null) {
       }
     });
   } catch (e) {
+    if (state.session?.id !== sessionId) return;
     if (!replied) {
       user.feedback.replaceChildren(el('div', { class: 'failed' }, e.message,
         el('button', { type: 'button', onclick: () => { user.wrap.remove(); sendTurn(text, speakingSeconds); } }, '다시 보내기')));
@@ -948,7 +1023,7 @@ async function sendTurn(text, speakingSeconds = null) {
     }
     setStatus('');
   } finally {
-    state.busy = false; updateComposer();
+    if (state.session?.id === sessionId) { state.busy = false; updateComposer(); }
   }
 }
 function setStatus(text, animated = false) {
@@ -980,8 +1055,10 @@ function micState(s) {
 mic.onclick = () => {
   if (state.busy && !capture) return;
   showVoice();
+  const sessionId = state.session?.id;
   toggleCapture(mic, async ({ text, speaking_seconds }) => {
     micState('idle');
+    if (!state.chatOpen || state.session?.id !== sessionId) return;
     if (settings.autoSend) await sendTurn(text, speaking_seconds);
     else { showKeyboard(); input.value = text; autosize(); input.focus(); input.dataset.seconds = speaking_seconds; }
   }, { onLevel: v => mic.style.setProperty('--level', v.toFixed(2)), onState: micState });
@@ -1017,6 +1094,17 @@ $('#textRow').onsubmit = e => {
   showVoice();
   sendTurn(text, seconds);
 };
+// Let the transcript reach the bottom of the wallpaper, with only enough
+// scroll space to keep the latest message above the floating voice controls.
+const composerObserver = new ResizeObserver(entries => {
+  const height = entries[0].target.getBoundingClientRect().height;
+  if (!height) return;
+  const messages = $('#messages');
+  const atBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 64;
+  $('#chatView').style.setProperty('--composer-space', height + 'px');
+  if (atBottom) scrollChat();
+});
+composerObserver.observe($('.composer'));
 
 // ------------------------------------------------------------ end of session report
 $('#endBtn').onclick = async () => {
@@ -1032,7 +1120,8 @@ $('#endBtn').onclick = async () => {
     sceneVersion++; avatarVersion++;
     renderReport(r);
     await refreshBoot();
-    renderHome(); setTab('talk');
+    history.replaceState({ heyAlex: true, view: 'home' }, '', homeUrl);
+    renderHome(); setTab('talk', { navigation: false });
   } catch (e) {
     $('#reportBody').replaceChildren(el('h2', {}, '정리하지 못했어요'), el('p', {}, e.message), el('button', { class: 'btn block', 'data-close': true }, '닫기'));
   }
@@ -1231,7 +1320,13 @@ function renderGrowth(p) {
   }
   renderHome();
   await restoreSession();
-  setTab('talk');
+  renderHome();
+  if (!history.state?.heyAlex) {
+    history.replaceState({ heyAlex: true, view: 'home' }, '', homeUrl);
+    if (initialView === 'chat' && state.session) setTab('talk', { chat: true });
+    else if (initialView === 'review' || initialView === 'growth') setTab(initialView);
+    else setTab('talk', { navigation: false });
+  } else showRoute(history.state.view);
   updateComposer();
   api('/api/health').then(h => { $('#modelInfo').textContent = `모델: ${h.model}`; if (!h.model_available) toast('로컬 모델을 찾을 수 없어요: ' + h.model, 6000); })
     .catch(() => toast('로컬 AI(Ollama)에 연결할 수 없어요.', 6000));
