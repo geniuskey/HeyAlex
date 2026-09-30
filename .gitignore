@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 coach.sqlite3
 .DS_Store
+image-model.log
+app/static/generated/

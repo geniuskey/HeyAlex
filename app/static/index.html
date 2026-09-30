@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Hey Alex">
 <title>Hey Alex</title>
+<link rel="icon" href="/static/favicon.ico" sizes="16x16 32x32 48x48 64x64">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml" sizes="any">
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" sizes="180x180">
 <style>
 :root {
   color-scheme: light dark;
@@ -49,6 +52,20 @@ button:disabled { opacity: .45; cursor: default; }
 textarea, input, select { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- scrollbars ---------- */
+:root { --scroll-thumb: color-mix(in srgb, var(--accent) 42%, var(--surface-2)); --scroll-thumb-hover: color-mix(in srgb, var(--accent) 72%, var(--surface-2)); }
+:where(.messages, .view, .sheet, textarea) { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+@supports selector(::-webkit-scrollbar) {
+  :where(.messages, .view, .sheet, textarea) { scrollbar-width: auto; scrollbar-color: auto; }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar { width: 8px; height: 8px; }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-track { background: transparent; }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-thumb { min-height: 36px; border: 2px solid transparent; border-radius: 99px; background: var(--scroll-thumb); background-clip: padding-box; }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hover); }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-thumb:active { background-color: var(--accent); }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+  :where(.messages, .view, .sheet, textarea)::-webkit-scrollbar-corner { background: transparent; }
+}
 
 /* ---------- shell ---------- */
 .app { height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; max-width: 640px; margin: 0 auto; }
@@ -110,12 +127,45 @@ body.typing .tabbar { display: none; }
 .topic:active { transform: scale(.98); }
 
 /* ---------- chat ---------- */
-.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 14px 16px; display: flex; flex-direction: column; gap: 14px; }
+.messages { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 16px; }
 .msg { max-width: 88%; display: flex; flex-direction: column; gap: 6px; }
-.msg.tutor { align-self: flex-start; }
+.msg.tutor { align-self: flex-start; display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 9px; align-items: start; }
+.message-avatar { width: 40px; height: 40px; object-fit: cover; border-radius: 15px; background: #eee5d6; }
+.message-content { grid-column: 2; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.sender-name { font-size: 12px; font-weight: 600; color: var(--ink); padding-left: 2px; text-shadow: 0 1px 3px var(--bg); }
+.msg.tutor.continuation { margin-top: -10px; }
+.msg.tutor.continuation .message-content { grid-column: 2; }
+.msg.tutor.continuation .bubble { border-top-left-radius: 10px; }
 .msg.user { align-self: flex-end; align-items: flex-end; max-width: 92%; }
-.bubble { padding: 11px 14px; border-radius: 18px; font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; }
-.tutor .bubble { background: var(--surface); border-bottom-left-radius: 6px; box-shadow: var(--shadow); }
+.bubble { padding: 11px 14px; border-radius: 10px; font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; position: relative; }
+.tutor .bubble { background: var(--surface); box-shadow: 0 1px 2px #00000014; }
+.tutor:not(.continuation) .bubble::before { content: ''; position: absolute; top: 9px; left: -7px; border-top: 0 solid transparent; border-bottom: 9px solid transparent; border-right: 8px solid color-mix(in srgb, var(--surface) 96%, transparent); }
+.msg.user > .bubble::after { content: ''; position: absolute; top: 9px; right: -7px; border-top: 0 solid transparent; border-bottom: 9px solid transparent; border-left: 8px solid var(--user); }
+/* The wallpaper stays still while messages scroll above it. */
+.view.chat-view { isolation: isolate; background: var(--surface-2); --user: #fee500; }
+.chat-wallpaper { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; z-index: -2; }
+.chat-view::before { content: ''; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 35%, transparent); z-index: -1; pointer-events: none; }
+.chat-view .tutor .bubble, .chat-view .feedback-focus { font-size: 12px; color: var(--accent); font-weight: 650; padding: 2px 4px; text-align: left; }
+.more-corrections { min-width: 0; text-align: left; }
+.more-corrections > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 94%, transparent); color: var(--ink-2); font-size: 13px; cursor: pointer; list-style: none; }
+.more-corrections > summary::-webkit-details-marker { display: none; }
+.more-corrections > summary::after { content: '⌄'; font-size: 18px; transition: transform .15s; }
+.more-corrections[open] > summary::after { transform: rotate(180deg); }
+.more-corrections > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.more-corrections:not([open]) .more-corrections-body { display: none; }
+.more-corrections-body { display: grid; gap: 8px; padding-top: 8px; }
+.corr { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+.chat-view .user > .bubble { background: var(--user); color: #29251a; }
+.chat-view .composer { position: relative; isolation: isolate; background: transparent; border-top-color: transparent; }
+.chat-view .composer::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; z-index: -1; background: color-mix(in srgb, var(--bg) 94%, transparent); border-radius: 20px 20px 0 0; border-top: 1px solid var(--line); pointer-events: none; }
+ .scene-status { flex: none; padding: 8px 14px 0; text-align: center; }
+.scene-caption { display: inline-block; max-width: 100%; font-size: 11px; color: var(--ink-2); padding: 3px 9px; border-radius: 99px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.speaking-guide { background: color-mix(in srgb, var(--surface) 96%, transparent); border: 1px solid var(--accent); border-radius: 14px; padding: 12px; text-align: left; box-shadow: var(--shadow); }
+.speaking-guide .label { font-size: 13px; font-weight: 700; color: var(--accent); }
+.speaking-guide p { margin: 6px 0; }
+.speaking-guide .guide-hint { font-size: 12px; color: var(--ink-2); }
+.speaking-guide .guide-example { font-size: 16px; line-height: 1.5; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .user .bubble { background: var(--user); border-bottom-right-radius: 6px; }
 .tutor .bubble.veiled .text { filter: blur(6px); user-select: none; }
 .tutor .bubble .veil-hint { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
@@ -154,14 +204,18 @@ body.typing .tabbar { display: none; }
 
 .composer { padding: 8px 14px calc(10px + 0px); border-top: 1px solid var(--line); background: var(--bg); }
 .status-line { font-size: 13px; color: var(--ink-3); text-align: center; min-height: 20px; margin-bottom: 4px; }
-.voice-row { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; justify-items: center; }
-.mic { --level: 0; width: 72px; height: 72px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 40%, transparent); position: relative; transition: transform .1s; }
+.voice-row { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; min-height: 96px; }
+.voice-row #toKeyboard { justify-self: start; background: transparent; color: var(--ink-2); }
+.voice-row #toKeyboard[aria-expanded="true"] { color: var(--accent); background: var(--accent-soft); }
+.voice-row #cancelRec { justify-self: end; }
+.voice-row #toKeyboard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mic { --level: 0; width: 80px; height: 80px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 40%, transparent); position: relative; transition: transform .1s; }
 .mic svg { width: 30px; height: 30px; position: relative; }
 .mic:active { transform: scale(.95); }
 .mic.recording { background: var(--err); color: #fff; }
 .mic.recording::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 3px solid var(--err); opacity: .35; transform: scale(calc(1 + var(--level) * .45)); transition: transform .08s; }
 .mic.working { background: var(--surface-2); color: var(--ink-3); box-shadow: none; }
-.text-row { display: flex; gap: 8px; align-items: flex-end; }
+.text-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px; }
 .text-row textarea { flex: 1; min-width: 0; resize: none; max-height: 30dvh; min-height: 46px; padding: 11px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); outline: none; font-size: 16px; line-height: 1.4; }
 .text-row textarea:focus { border-color: var(--accent); }
 .round { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-2); flex: none; }
@@ -275,11 +329,21 @@ body.typing .tabbar { display: none; }
 
     <!-- Talk: active session -->
     <section class="view chat-view" id="chatView" hidden aria-label="대화">
+      <img class="chat-wallpaper" id="sceneImage" src="/static/wallpapers/home.png" alt="저녁 햇살이 드는 거실" width="432" height="768">
+      <div class="scene-status">
+        <span class="scene-caption" id="sceneCaption" role="status">저녁 햇살이 드는 거실</span>
+      </div>
       <div class="messages" id="messages" aria-live="polite"></div>
       <div class="composer">
         <div class="status-line" id="status"></div>
+        <form class="text-row" id="textRow" hidden>
+          <textarea id="input" rows="1" maxlength="2000" placeholder="영어로 입력하세요" aria-label="메시지" enterkeyhint="send"></textarea>
+          <button class="round primary" id="sendBtn" type="submit" aria-label="보내기">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          </button>
+        </form>
         <div class="voice-row" id="voiceRow">
-          <button class="round" id="toKeyboard" type="button" aria-label="키보드로 입력">
+          <button class="round" id="toKeyboard" type="button" aria-label="키보드로 입력" title="키보드로 입력" aria-controls="textRow" aria-expanded="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 13h.01M18 13h.01M9 15.5h6"/></svg>
           </button>
           <button class="mic" id="mic" type="button" aria-label="말하기 시작">
@@ -289,15 +353,7 @@ body.typing .tabbar { display: none; }
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
-        <form class="text-row" id="textRow" hidden>
-          <button class="round" id="toVoice" type="button" aria-label="음성으로 말하기">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>
-          </button>
-          <textarea id="input" rows="1" maxlength="2000" placeholder="영어로 입력하세요" aria-label="메시지" enterkeyhint="send"></textarea>
-          <button class="round primary" id="sendBtn" type="submit" aria-label="보내기">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
-          </button>
-        </form>
+
       </div>
     </section>
 
@@ -650,6 +706,10 @@ async function startSession(topic) {
     state.session = { id: s.id, topic: s.topic, focus: s.focus };
     store('sf.session', s.id);
     $('#messages').replaceChildren();
+    showVoice();
+    resetCallImage();
+    addTutorImage({ ...s.image, keep_current: false });
+    loadAlexImage();
     $('#toast').hidden = true;
     setTab('talk');
     const t = addTutor(s.opener);
@@ -668,6 +728,10 @@ async function restoreSession() {
     if (s.ended) { store('sf.session', null); return; }
     state.session = { id: s.id, topic: s.topic, focus: [] };
     $('#messages').replaceChildren();
+    showVoice();
+    resetCallImage();
+    addTutorImage({ ...s.image, keep_current: false });
+    loadAlexImage();
     if (s.opener) addTutor(s.opener, { veil: false });
     for (const t of s.turns) {
       const u = addUser(t.user_text, { voice: !!t.audio_seconds });
@@ -677,6 +741,7 @@ async function restoreSession() {
   } catch { store('sf.session', null); }
 }
 function scrollChat() { const m = $('#messages'); requestAnimationFrame(() => (m.scrollTop = m.scrollHeight)); }
+let alexAvatarUrl = '/static/alex.png';
 function addTutor(text, { veil = settings.veil } = {}) {
   const textEl = el('div', { class: 'text' }, text);
   const bubble = el('div', { class: 'bubble' + (veil ? ' veiled' : '') }, textEl);
@@ -688,9 +753,76 @@ function addTutor(text, { veil = settings.veil } = {}) {
   const speak = speakerButton(text, '듣기');
   const slow = el('button', { class: 'mini', type: 'button', html: ICON.slow }, '천천히');
   slow.onclick = () => playTts(text, { speed: Math.min(0.75, settings.speed), button: slow });
-  const wrap = el('div', { class: 'msg tutor' }, bubble, el('div', { class: 'msg-actions' }, speak, slow));
-  $('#messages').append(wrap); scrollChat();
+  const messages = $('#messages');
+  const continuation = messages.lastElementChild?.classList.contains('tutor') || false;
+  const avatar = continuation ? null : el('img', {
+    class: 'message-avatar', src: alexAvatarUrl, alt: 'Alex 프로필', width: 40, height: 40, decoding: 'async',
+  });
+  const content = el('div', { class: 'message-content' },
+    continuation ? null : el('div', { class: 'sender-name' }, 'Alex'),
+    bubble, el('div', { class: 'msg-actions' }, speak, slow));
+  const wrap = el('div', { class: 'msg tutor' + (continuation ? ' continuation' : ''), 'aria-label': 'Alex의 메시지' }, avatar, content);
+  messages.append(wrap); scrollChat();
   return { wrap, speak };
+}
+let sceneVersion = 0;
+let avatarVersion = 0;
+function resetCallImage() {
+  sceneVersion++; avatarVersion++;
+  $('#sceneImage').src = '/static/wallpapers/home.png';
+  $('#sceneImage').alt = '저녁 햇살이 드는 거실';
+  $('#sceneCaption').textContent = '저녁 햇살이 드는 거실';
+}
+async function waitForImage(image, isCurrent) {
+  const deadline = Date.now() + 360000;
+  while (image.status === 'pending' && image.job_url && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    if (!isCurrent()) return null;
+    const result = await api(image.job_url);
+    image = { ...image, ...result };
+  }
+  if (!isCurrent()) return null;
+  if (image.status === 'pending') return { status: 'error', error: '이미지 생성이 지연되고 있어요. 현재 이미지를 유지합니다.' };
+  return image;
+}
+async function loadAlexImage() {
+  const version = ++avatarVersion;
+  try {
+    let image = await api('/api/images/avatar');
+    image = await waitForImage(image, () => version === avatarVersion);
+    if (image?.status === 'ready') {
+      alexAvatarUrl = image.url;
+      document.querySelectorAll('.message-avatar').forEach(avatar => { avatar.src = image.url; });
+    }
+  } catch { /* The bundled portrait remains visible if the model is offline. */ }
+}
+async function addTutorImage(image) {
+  if (!image?.url || (image.keep_current && image.status !== 'pending')) return;
+  const version = ++sceneVersion;
+  const isCurrent = () => version === sceneVersion;
+  // Leave the current picture visible during generation and image loading.
+  $('#sceneCaption').textContent = image.status === 'pending' ? `${image.alt} · 배경 준비 중…` : image.alt;
+  try {
+    image = await waitForImage(image, isCurrent);
+    if (!image) return;
+    if (image.keep_current && image.status === 'ready') {
+      $('#sceneCaption').textContent = $('#sceneImage').alt;
+      return;
+    }
+    if (image.status === 'error') {
+      $('#sceneCaption').textContent = image.error;
+      return;
+    }
+    const picture = new Image();
+    picture.src = image.url;
+    await picture.decode();
+    if (!isCurrent()) return;
+    $('#sceneImage').src = image.url;
+    $('#sceneImage').alt = image.alt || '대화 배경';
+    $('#sceneCaption').textContent = image.alt || '대화 배경';
+  } catch {
+    if (isCurrent()) $('#sceneCaption').textContent = '이미지를 불러오지 못했어요. 현재 이미지를 유지합니다.';
+  }
 }
 function addUser(text, { voice = false } = {}) {
   const textEl = el('div', { class: 'text' }, text);
@@ -734,23 +866,56 @@ function attemptResult(r, heard, c) {
   return box;
 }
 function renderAnalysis(user, text, a) {
-  const cards = a.corrections.map(correctionCard);
-  if (a.corrections.length) {
-    user.textEl.replaceChildren(highlight(text, a.corrections.map(c => c.original), i => {
-      cards[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-      cards[i].classList.remove('flash'); void cards[i].offsetWidth; cards[i].classList.add('flash');
+  // The analyst already returns corrections in order of importance.
+  const corrections = a.corrections || [];
+  const cards = corrections.map(correctionCard);
+  const parts = [];
+  let more = null;
+  function highlightVisibleCorrections() {
+    const visible = more?.open ? corrections : corrections.slice(0, 1);
+    if (!visible.length) return;
+    user.textEl.replaceChildren(highlight(text, visible.map(c => c.original), i => {
+      if (i > 0 && more) more.open = true;
+      requestAnimationFrame(() => {
+        cards[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cards[i].classList.remove('flash'); void cards[i].offsetWidth; cards[i].classList.add('flash');
+      });
     }));
   }
-  const parts = [];
-  if (!a.corrections.length) parts.push(el('div', { class: 'fb-ok' }, '✓ 자연스러워요'));
-  parts.push(...cards);
-  if (a.natural) {
-    parts.push(el('div', { class: 'natural' },
-      el('p', {}, el('span', { class: 'label' }, a.corrections.length ? '원어민이라면' : '이렇게도 말해요'), a.natural),
-      speakerButton(a.natural)));
+  const natural = a.natural ? el('div', { class: 'natural' },
+    el('p', {}, el('span', { class: 'label' }, corrections.length ? '원어민이라면' : '이렇게도 말해요'), a.natural),
+    speakerButton(a.natural)) : null;
+  if (!corrections.length) parts.push(el('div', { class: 'fb-ok' }, '✓ 자연스러워요'));
+  if (corrections.length > 1) {
+    parts.push(el('div', { class: 'feedback-focus' }, '이번에는 이 표현 하나부터 연습해봐요.'));
+    parts.push(cards[0]);
+    const label = el('span', {}, `다른 교정 ${corrections.length - 1}개 보기`);
+    more = el('details', { class: 'more-corrections', ontoggle: () => {
+      label.textContent = more.open ? '다른 교정 접기' : `다른 교정 ${corrections.length - 1}개 보기`;
+      highlightVisibleCorrections();
+    } }, el('summary', {}, label), el('div', { class: 'more-corrections-body' }, ...cards.slice(1), natural));
+    parts.push(more);
+  } else {
+    parts.push(...cards, natural);
   }
+  if (a.guide) parts.push(speakingGuideCard(a.guide));
   if (a.good?.length) parts.push(el('div', { class: 'good-use' }, '👍 잘 썼어요: ' + a.good.map(g => `"${g.text}" (${catLabel(g.category)})`).join(', ')));
   user.feedback.replaceChildren(...parts);
+  highlightVisibleCorrections();
+}
+function speakingGuideCard(guide) {
+  const actions = [];
+  // Placeholders invite the learner to add their own details before speaking.
+  if (!/\[[^\]]+\]/.test(guide.example)) actions.push(speakerButton(guide.example, '예시 듣기'));
+  actions.push(el('button', { class: 'mini', type: 'button', onclick: () => {
+    showKeyboard(); input.value = guide.example; input.focus(); input.dispatchEvent(new Event('input'));
+  } }, '이 문장으로 연습'));
+  return el('div', { class: 'speaking-guide' },
+    el('div', { class: 'label' }, '조금 더 길게 이렇게 말해보면 어때요?'),
+    el('p', { class: 'guide-example' }, guide.example),
+    el('p', { class: 'guide-hint' }, guide.hint_ko),
+    /\[[^\]]+\]/.test(guide.example) ? el('p', { class: 'guide-hint' }, '[ ] 부분에 본인의 이야기를 넣어보세요.') : null,
+    el('div', { class: 'guide-actions' }, ...actions));
 }
 async function sendTurn(text, speakingSeconds = null) {
   text = text.trim();
@@ -766,7 +931,9 @@ async function sendTurn(text, speakingSeconds = null) {
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Alex가 답하지 못했어요.');
     await readEvents(res, async (event, data) => {
-      if (event === 'reply') {
+      if (event === 'image') {
+        addTutorImage(data);
+      } else if (event === 'reply') {
         replied = true;
         const t = addTutor(data.reply);
         state.busy = false; updateComposer(); setStatus('');
@@ -774,6 +941,10 @@ async function sendTurn(text, speakingSeconds = null) {
       } else if (event === 'analysis') {
         renderAnalysis(user, text, data);
         refreshBoot().catch(() => {});
+      } else if (event === 'guide') {
+        user.feedback.querySelector('.speaking-guide')?.remove();
+        user.feedback.append(speakingGuideCard(data));
+        scrollChat();
       } else if (event === 'analysis_error') {
         user.feedback.replaceChildren(el('div', { class: 'failed' }, data.error));
       } else if (event === 'error') {
@@ -808,6 +979,7 @@ function micState(s) {
   mic.innerHTML = s === 'recording' ? ICON.stop : ICON.mic;
   mic.setAttribute('aria-label', s === 'recording' ? '말하기 끝내기' : '말하기 시작');
   $('#cancelRec').style.visibility = s === 'recording' ? 'visible' : 'hidden';
+  $('#toKeyboard').disabled = s === 'recording' || s === 'transcribing';
   clearInterval(recTimer);
   if (s === 'recording') {
     const start = Date.now();
@@ -819,6 +991,7 @@ function micState(s) {
 }
 mic.onclick = () => {
   if (state.busy && !capture) return;
+  showVoice();
   toggleCapture(mic, async ({ text, speaking_seconds }) => {
     micState('idle');
     if (settings.autoSend) await sendTurn(text, speaking_seconds);
@@ -826,10 +999,22 @@ mic.onclick = () => {
   }, { onLevel: v => mic.style.setProperty('--level', v.toFixed(2)), onState: micState });
 };
 $('#cancelRec').onclick = () => capture?.cancel();
-function showKeyboard() { $('#voiceRow').hidden = true; $('#textRow').hidden = false; store('sf.keyboard', true); }
-function showVoice() { $('#voiceRow').hidden = false; $('#textRow').hidden = true; store('sf.keyboard', false); document.body.classList.remove('typing'); }
-$('#toKeyboard').onclick = () => { showKeyboard(); input.focus(); };
-$('#toVoice').onclick = showVoice;
+function showKeyboard() {
+  $('#voiceRow').hidden = false;
+  $('#textRow').hidden = false;
+  $('#toKeyboard').setAttribute('aria-expanded', 'true');
+}
+function showVoice() {
+  $('#voiceRow').hidden = false;
+  $('#textRow').hidden = true;
+  $('#toKeyboard').setAttribute('aria-expanded', 'false');
+  if (document.activeElement === input) input.blur();
+  document.body.classList.remove('typing');
+}
+$('#toKeyboard').onclick = () => {
+  if ($('#textRow').hidden) { showKeyboard(); input.focus(); }
+  else showVoice();
+};
 function autosize() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, window.innerHeight * 0.3) + 'px'; }
 input.addEventListener('input', autosize);
 input.addEventListener('focus', () => document.body.classList.add('typing'));
@@ -841,6 +1026,7 @@ $('#textRow').onsubmit = e => {
   const text = input.value;
   if (!text.trim() || state.busy) return;
   input.value = ''; delete input.dataset.seconds; autosize();
+  showVoice();
   sendTurn(text, seconds);
 };
 
@@ -855,6 +1041,7 @@ $('#endBtn').onclick = async () => {
   try {
     const r = await api(`/api/sessions/${id}/end`, { json: {} });
     state.session = null; store('sf.session', null);
+    sceneVersion++; avatarVersion++;
     renderReport(r);
     await refreshBoot();
     renderHome(); setTab('talk');
@@ -1047,7 +1234,7 @@ function renderGrowth(p) {
 
 // ------------------------------------------------------------ start
 (async function init() {
-  if (load('sf.keyboard', false)) showKeyboard();
+  showVoice();
   try {
     await refreshBoot();
   } catch (e) {

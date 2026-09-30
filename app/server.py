@@ -12,6 +12,7 @@ from typing import Any
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory, stream_with_context
 
 import coach
+import images
 import speech
 import store
 
@@ -71,7 +72,9 @@ def start_session():
     except LLM_ERRORS as exc:
         return jsonify(error=f"로컬 AI에 연결하지 못했어요: {exc}"), 503
     session_id = store.create_session(topic, level, opener)
-    return jsonify(id=session_id, topic=topic, level=level, opener=opener, focus=focus)
+    return jsonify(id=session_id, topic=topic, level=level, opener=opener, focus=focus,
+                   image=images.conversation_image(opener if images.explicit_scene(opener) in images.PLACES else "", topic,
+                                                  generate=not app.config.get("TESTING")))
 
 
 @app.get("/api/sessions/<int:session_id>")
@@ -79,6 +82,18 @@ def session_detail(session_id: int):
     session = store.get_session(session_id)
     if session is None:
         return jsonify(error="Session not found"), 404
+    context = [session["opener"]]
+    session["image"] = images.conversation_image(session["opener"] if images.explicit_scene(session["opener"]) in images.PLACES else "", session["topic"], generate=False)
+    for turn in session["turns"]:
+        turn["image"] = images.conversation_image(turn["user_text"], session["topic"], context, generate=False)
+        session["image"] = turn["image"]
+        context.extend([turn["user_text"], turn["reply"]])
+    if not app.config.get("TESTING"):
+        if session["turns"]:
+            latest = session["turns"][-1]
+            session["image"] = images.conversation_image(latest["user_text"], session["topic"], context[:-2])
+        else:
+            session["image"] = images.conversation_image(session["opener"] if images.explicit_scene(session["opener"]) in images.PLACES else "", session["topic"])
     return jsonify(session)
 
 
@@ -100,6 +115,9 @@ def session_turn(session_id: int):
 
     def events():
         yield sse("started", {})
+        yield sse("image", images.conversation_image(text, session["topic"],
+                  [item["content"] for item in history[:-1]],
+                  generate=bool(images.explicit_scene(text)) and not app.config.get("TESTING")))
         try:
             reply = coach.generate_reply(history, session["topic"], session["level"], focus)
         except LLM_ERRORS as exc:
@@ -113,6 +131,15 @@ def session_turn(session_id: int):
             yield sse("analysis_error", {"turn_id": turn_id, "error": f"교정 분석에 실패했어요: {exc}"})
             return
         yield sse("analysis", {"turn_id": turn_id, **analysis})
+        previous_question = next((item["content"] for item in reversed(history[:-1]) if item["role"] == "assistant"), "")
+        guide = coach.short_answer_guide(text, previous_question, session["level"])
+        if guide:
+            store.save_guide(turn_id, guide)
+            yield sse("guide", {"turn_id": turn_id, **guide})
+        # Interpret unfamiliar or more specific subjects after reply/analysis are sent.
+        if not app.config.get("TESTING") and images.needs_scene_interpretation(text):
+            yield sse("image", images.conversation_image(text, session["topic"],
+                      [item["content"] for item in history[:-1]]))
 
     return sse_response(events())
 
@@ -129,6 +156,19 @@ def finish_session(session_id: int):
     except LLM_ERRORS:
         pass  # the numbers are still useful without the written note
     return jsonify(**report, summary=summary, focus=store.current_focus())
+
+
+@app.get("/api/images/avatar")
+def avatar_image():
+    return jsonify(images.avatar_image())
+
+
+@app.get("/api/images/jobs/<key>")
+def image_job(key):
+    result = images.job_status(key)
+    if result is None:
+        return jsonify(status="error", error="이미지 요청이 만료됐어요."), 404
+    return jsonify(result)
 
 
 # ---------------------------------------------------------------- progress and review

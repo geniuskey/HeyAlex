@@ -297,3 +297,14 @@ def grade_card(card_id: int, correct: bool, now: float | None = None) -> dict[st
     with connect() as conn:
         conn.execute("UPDATE cards SET box = ?, due = ?, reps = reps + 1, lapses = ?, last_reviewed = ? WHERE id = ?", (box, due, lapses, now, card_id))
     return {"id": card_id, "box": box, "due": due, "mastered": box >= MASTERED_BOX}
+
+
+def save_guide(turn_id: int, guide: dict[str, str]) -> None:
+    """Attach a speaking example without recording it as a mistake."""
+    with connect() as conn:
+        turn = conn.execute('SELECT feedback FROM turns WHERE id = ?', (turn_id,)).fetchone()
+        if turn is None:
+            return
+        feedback = json.loads(turn['feedback'])
+        feedback['guide'] = guide
+        conn.execute('UPDATE turns SET feedback = ? WHERE id = ?', (json.dumps(feedback, ensure_ascii=False), turn_id))

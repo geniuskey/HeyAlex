@@ -16,6 +16,7 @@ import store
 def temp_db(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "test.sqlite3")
     store.init_db()
+    monkeypatch.setattr(coach, "short_answer_guide", lambda *_args: None)
 
 
 @pytest.fixture
@@ -200,10 +201,13 @@ def test_full_session_flow(client, monkeypatch):
 
     response = client.post(f"/api/sessions/{start['id']}/turns", json={"text": "I go there yesterday", "audio_seconds": 2.5})
     evs = events(response.get_data(as_text=True))
-    assert [e for e, _ in evs] == ["started", "reply", "analysis"]
-    card_id = evs[2][1]["corrections"][0]["card_id"]
+    assert [e for e, _ in evs] == ["started", "image", "reply", "analysis"]
+    assert evs[1][1]["scene"] == "home"
+    assert evs[1][1]["url"] == "/static/wallpapers/home.png"
+    card_id = evs[3][1]["corrections"][0]["card_id"]
 
     session = client.get(f"/api/sessions/{start['id']}").get_json()
+    assert session["turns"][0]["image"]["scene"] == "home"
     assert session["turns"][0]["analysis"]["corrections"][0]["card_id"] == card_id
 
     assert client.get("/api/review").get_json()["cards"][0]["id"] == card_id
@@ -217,6 +221,35 @@ def test_full_session_flow(client, monkeypatch):
     progress = client.get("/api/progress").get_json()
     assert progress["turns"] == 1 and progress["streak"] == 1
     assert progress["weak_points"][0]["category"] == "tense"
+
+
+def test_turn_emits_image_before_generating_tutor_reply(client, monkeypatch):
+    sid = store.create_session("free", "intermediate", "Hi!")
+    generated = False
+
+    def reply(*_args):
+        nonlocal generated
+        generated = True
+        return "Sounds good!"
+
+    monkeypatch.setattr(coach, "generate_reply", reply)
+    response = client.post(f"/api/sessions/{sid}/turns", json={"text": "I went hiking"}, buffered=False)
+    chunks = iter(response.response)
+    try:
+        assert "event: started" in next(chunks).decode()
+        image_event = next(chunks).decode()
+    finally:
+        response.close()
+
+    assert "event: image" in image_event
+    assert not generated
+
+
+def test_static_scene_asset_is_served(client):
+    response = client.get("/static/scenes/cafe.png")
+    assert response.status_code == 200
+    assert response.mimetype == "image/png"
+    assert response.data[:8] == b"\x89PNG\r\n\x1a\n"
 
 
 def test_turn_reports_llm_failure_as_event(client, monkeypatch):
@@ -239,7 +272,7 @@ def test_analysis_failure_still_keeps_reply(client, monkeypatch):
     monkeypatch.setattr(coach, "generate_reply", lambda *a: "Cool!")
     monkeypatch.setattr(coach, "analyze", bad_analysis)
     evs = events(client.post(f"/api/sessions/{sid}/turns", json={"text": "hello"}).get_data(as_text=True))
-    assert [e for e, _ in evs] == ["started", "reply", "analysis_error"]
+    assert [e for e, _ in evs] == ["started", "image", "reply", "analysis_error"]
 
 
 def test_turn_validation(client):
@@ -300,3 +333,15 @@ def test_speech_endpoint(client, monkeypatch):
 
 def test_transcribe_requires_audio(client):
     assert client.post("/api/transcribe").status_code == 400
+
+
+def test_image_job_status_and_fixed_panel(client, monkeypatch):
+    import images
+    monkeypatch.setattr(images, 'job_status', lambda key: {'status': 'pending'} if key == 'queued' else None)
+    assert client.get('/api/images/jobs/queued').get_json() == {'status': 'pending'}
+    assert client.get('/api/images/jobs/missing').status_code == 404
+    assert client.get('/api/images/avatar').get_json()['status'] == 'ready'
+    markup = client.get('/').get_data(as_text=True)
+    assert markup.index('id="sceneImage"') < markup.index('id="messages"')
+    assert "class: 'message-avatar'" in markup
+    assert "class: 'sender-name'" in markup
